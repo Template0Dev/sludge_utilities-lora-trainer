@@ -126,7 +126,12 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
     trainer = SFTTrainer(
         model=model,
         tokenizer=processor,
-        data_collator=UnslothVisionDataCollator(model, processor),
+        data_collator=UnslothVisionDataCollator(
+            model,
+            processor,
+            resize=config.training.resize,
+            resize_dimension=config.training.resize_dimension,
+        ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         args=args,

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class ModelConfig(BaseModel):
-    id: str = "Qwen/Qwen3.6-35B-A3B-FP8"
+    id: str = "Qwen/Qwen3.6-35B-A3B"
 
 
 class DatasetConfig(BaseModel):
@@ -53,6 +53,8 @@ class TrainingConfig(BaseModel):
     unsloth_moe_backend: str | None = None
     attn_implementation: str | None = None
     set_unsloth_env_flags: bool = False
+    resize: int | str | None = "min"
+    resize_dimension: str | None = "max"
     unsloth_env_flags: dict[str, str] = Field(
         default_factory=lambda: {
             "UNSLOTH_RETURN_LOGITS": "1",
