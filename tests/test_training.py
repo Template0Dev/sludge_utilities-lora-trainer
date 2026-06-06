@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from lora_trainer.config import AppConfig
 from lora_trainer.dataset import DatasetManifest
-from lora_trainer.training import sft_length_kwargs, train_adapter
+from lora_trainer.training import build_model_load_kwargs, patch_model_runtime_config, sft_length_kwargs, train_adapter
 
 
 class CurrentSFTConfig:
@@ -23,6 +24,27 @@ def test_sft_length_kwargs_uses_current_trl_max_length() -> None:
 
 def test_sft_length_kwargs_supports_legacy_trl_max_seq_length() -> None:
     assert sft_length_kwargs(LegacySFTConfig, 2048) == {"max_seq_length": 2048}
+
+
+def test_build_model_load_kwargs_sets_eager_experts_backend_by_default() -> None:
+    config = AppConfig()
+
+    kwargs = build_model_load_kwargs(config)
+
+    assert kwargs["max_seq_length"] == 2048
+    assert kwargs["use_gradient_checkpointing"] == "unsloth"
+    assert kwargs["experts_implementation"] == "eager"
+
+
+def test_patch_model_runtime_config_sets_nested_experts_backend() -> None:
+    nested = SimpleNamespace(_experts_implementation="grouped_mm")
+    model = SimpleNamespace(config=SimpleNamespace(language_config=nested))
+    config = AppConfig()
+
+    patch_model_runtime_config(model, config)
+
+    assert model.config._experts_implementation == "eager"
+    assert nested._experts_implementation == "eager"
 
 
 @patch("lora_trainer.training._train_with_unsloth")
@@ -90,4 +112,3 @@ def test_train_adapter_does_not_set_unsloth_env_flags_if_disabled(mock_train, tm
     assert "UNSLOTH_TEST_VAR_1" not in os.environ
     assert "UNSLOTH_TEST_VAR_2" not in os.environ
     assert mock_train.called
-

@@ -27,6 +27,7 @@ def test_load_config_defaults_dataset_paths(tmp_path: Path) -> None:
     assert config.training.batch_size == 1
     assert config.lora.precision == "bf16"
     assert config.training.max_seq_length == 2048
+    assert config.training.experts_implementation == "eager"
 
 
 def test_load_config_rejects_merged_export_mode(tmp_path: Path) -> None:
@@ -99,4 +100,3 @@ def test_load_config_unsloth_env_flags_defaults(tmp_path: Path) -> None:
     config = load_config(config_path)
     assert config.training.set_unsloth_env_flags is False
     assert config.training.unsloth_env_flags["UNSLOTH_COMPILE_DISABLE"] == "1"
-

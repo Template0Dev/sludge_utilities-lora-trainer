@@ -24,6 +24,7 @@ gpu = [
     "transformers>=4.50.0",
     "trl>=0.15.0",
     "unsloth>=2025.0.0",
+    "kernels<0.15.0",
 ]
 
 [build-system]
