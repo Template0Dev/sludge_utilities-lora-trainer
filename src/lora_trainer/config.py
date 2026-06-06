@@ -45,11 +45,21 @@ class TrainingConfig(BaseModel):
     batch_size: int = 1
     gradient_accumulation_steps: int = 8
     gradient_checkpointing: bool = True
+    max_seq_length: int = 2048
     max_steps: int = 60
     learning_rate: float = 2e-4
     seed: int = 3407
     qlora_4bit: bool = False
     unsloth_moe_backend: str | None = None
+
+    @field_validator("max_seq_length")
+    @classmethod
+    def validate_max_seq_length(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("max_seq_length must be positive")
+        if value > 3072:
+            raise ValueError("max_seq_length must be <= 3072 for the conservative memory profile")
+        return value
 
 
 class ExportConfig(BaseModel):

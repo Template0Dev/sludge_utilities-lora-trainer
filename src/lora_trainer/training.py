@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import shutil
+from inspect import signature
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -52,6 +54,7 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
 
     model, processor = FastVisionModel.from_pretrained(
         config.model.id,
+        max_seq_length=config.training.max_seq_length,
         load_in_4bit=config.training.qlora_4bit,
         use_gradient_checkpointing="unsloth" if config.training.gradient_checkpointing else False,
     )
@@ -78,6 +81,7 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         seed=config.training.seed,
         remove_unused_columns=False,
         dataset_text_field="",
+        **sft_length_kwargs(SFTConfig, config.training.max_seq_length),
     )
     trainer = SFTTrainer(
         model=model,
@@ -94,3 +98,12 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
 
 def write_config_snapshot(config: AppConfig, output_path: Path) -> None:
     output_path.write_text(yaml.safe_dump(config.model_dump(mode="json"), allow_unicode=True), encoding="utf-8")
+
+
+def sft_length_kwargs(sft_config_cls: type[Any], max_seq_length: int) -> dict[str, int]:
+    params = signature(sft_config_cls).parameters
+    if "max_length" in params:
+        return {"max_length": max_seq_length}
+    if "max_seq_length" in params:
+        return {"max_seq_length": max_seq_length}
+    raise RuntimeError("TRL SFTConfig does not expose max_length or max_seq_length")

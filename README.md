@@ -70,6 +70,7 @@ Defaults are conservative:
 - batch size 1
 - gradient accumulation enabled
 - gradient checkpointing enabled
+- max sequence length 2048 by default, validated to stay at or below 3072
 - adapter-only export
 
 4-bit QLoRA is available only as explicit opt-in via `training.qlora_4bit: true` and emits a warning because MoE/VL support depends on the selected Unsloth/model path.
