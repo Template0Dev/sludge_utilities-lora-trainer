@@ -113,6 +113,7 @@ def _flatten_single_top_level_directory(destination: Path) -> None:
 
 
 def validate_extracted_dataset(root: Path, *, dataset_name: str) -> DatasetManifest:
+    root = root.resolve()
     if not root.exists():
         raise DatasetValidationError(f"Dataset root does not exist: {root}")
 
