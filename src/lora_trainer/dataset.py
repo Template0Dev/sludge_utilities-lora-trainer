@@ -148,7 +148,25 @@ def validate_extracted_dataset(root: Path, *, dataset_name: str) -> DatasetManif
     )
 
 
+def _make_image_paths_absolute(record: dict, root: Path) -> dict:
+    import copy
+    copied = copy.deepcopy(record)
+    messages = copied.get("messages")
+    if isinstance(messages, list):
+        for message in messages:
+            if isinstance(message, dict):
+                content = message.get("content")
+                if isinstance(content, list):
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "image":
+                            image_path = item.get("image")
+                            if isinstance(image_path, str) and image_path:
+                                item["image"] = str((root / image_path).resolve())
+    return copied
+
+
 def load_training_records(root: Path) -> list[dict]:
+    root = root.resolve()
     records: list[dict] = []
     # Determine which augmented filename exists
     aug_filename = "train-augmented.jsonl"
@@ -157,14 +175,15 @@ def load_training_records(root: Path) -> list[dict]:
 
     for filename in ("train.jsonl", aug_filename):
         for line_number, record in _read_jsonl(root / filename):
-            copied = dict(record)
+            copied = _make_image_paths_absolute(record, root)
             copied["_metadata"] = {"source_file": filename, "line_number": line_number}
             records.append(copied)
     return records
 
 
 def load_validation_records(root: Path) -> list[dict]:
-    return [record for _, record in _read_jsonl(root / "validation.jsonl")]
+    root = root.resolve()
+    return [_make_image_paths_absolute(record, root) for _, record in _read_jsonl(root / "validation.jsonl")]
 
 
 def write_manifest(manifest: DatasetManifest, output_path: Path) -> None:

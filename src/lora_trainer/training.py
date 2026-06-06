@@ -98,6 +98,7 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         max_steps=config.training.max_steps,
         learning_rate=config.training.learning_rate,
+        logging_steps=1,
         bf16=True,
         fp16=False,
         seed=config.training.seed,
