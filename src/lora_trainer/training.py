@@ -24,6 +24,10 @@ def train_adapter(config: AppConfig, dataset_root: Path, manifest: DatasetManife
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if config.training.set_unsloth_env_flags:
+        for key, val in config.training.unsloth_env_flags.items():
+            os.environ[key] = str(val)
+
     if config.training.unsloth_moe_backend:
         os.environ["UNSLOTH_MOE_BACKEND"] = config.training.unsloth_moe_backend
 

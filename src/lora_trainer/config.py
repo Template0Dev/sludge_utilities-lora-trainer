@@ -51,6 +51,22 @@ class TrainingConfig(BaseModel):
     seed: int = 3407
     qlora_4bit: bool = False
     unsloth_moe_backend: str | None = None
+    set_unsloth_env_flags: bool = False
+    unsloth_env_flags: dict[str, str] = Field(
+        default_factory=lambda: {
+            "UNSLOTH_RETURN_LOGITS": "1",
+            "UNSLOTH_COMPILE_DISABLE": "1",
+            "UNSLOTH_DISABLE_FAST_GENERATION": "1",
+            "UNSLOTH_ENABLE_LOGGING": "1",
+            "UNSLOTH_FORCE_FLOAT32": "1",
+            "UNSLOTH_STUDIO_DISABLED": "1",
+            "UNSLOTH_COMPILE_DEBUG": "1",
+            "UNSLOTH_COMPILE_MAXIMUM": "0",
+            "UNSLOTH_COMPILE_IGNORE_ERRORS": "1",
+            "UNSLOTH_FULLGRAPH": "0",
+            "UNSLOTH_DISABLE_AUTO_UPDATES": "1",
+        }
+    )
 
     @field_validator("max_seq_length")
     @classmethod

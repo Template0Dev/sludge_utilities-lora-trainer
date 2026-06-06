@@ -59,3 +59,44 @@ def test_load_config_rejects_max_seq_length_above_conservative_limit(tmp_path: P
 
     with pytest.raises(ValueError, match="max_seq_length"):
         load_config(config_path)
+
+
+def test_load_config_unsloth_env_flags(tmp_path: Path) -> None:
+    config_path = tmp_path / "train.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "model": {"id": "Qwen/Qwen3.6-35B-A3B-FP8"},
+                "training": {
+                    "set_unsloth_env_flags": True,
+                    "unsloth_env_flags": {
+                        "UNSLOTH_COMPILE_DISABLE": "0",
+                        "UNSLOTH_DISABLE_FAST_GENERATION": "0",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+    assert config.training.set_unsloth_env_flags is True
+    assert config.training.unsloth_env_flags["UNSLOTH_COMPILE_DISABLE"] == "0"
+    assert config.training.unsloth_env_flags["UNSLOTH_DISABLE_FAST_GENERATION"] == "0"
+
+
+def test_load_config_unsloth_env_flags_defaults(tmp_path: Path) -> None:
+    config_path = tmp_path / "train.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "model": {"id": "Qwen/Qwen3.6-35B-A3B-FP8"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+    assert config.training.set_unsloth_env_flags is False
+    assert config.training.unsloth_env_flags["UNSLOTH_COMPILE_DISABLE"] == "1"
+
