@@ -85,3 +85,21 @@ def test_extract_dataset_zip_flattens_single_top_level_directory(tmp_path: Path)
     assert (dest / "images" / "img.png").exists()
     assert not (dest / "my_dataset").exists()
 
+
+def test_validate_dataset_accepts_train_augmented_with_underscore(tmp_path: Path) -> None:
+    root = tmp_path / "dataset"
+    root.mkdir()
+    _write_png(root / "images-augmented/src-10k_augmented_ЛБА [2885-2890]_aug_0.png")
+    _write_jsonl(root / "train.jsonl", [_record("images-augmented/src-10k_augmented_ЛБА [2885-2890]_aug_0.png")])
+    _write_jsonl(root / "train_augmented.jsonl", [_record("images-augmented/src-10k_augmented_ЛБА [2885-2890]_aug_0.png")])
+    _write_jsonl(root / "validation.jsonl", [_record("images-augmented/src-10k_augmented_ЛБА [2885-2890]_aug_0.png")])
+
+    manifest = validate_extracted_dataset(root, dataset_name="lba_analysis")
+
+    assert manifest.dataset_name == "lba_analysis"
+    assert manifest.split_counts["train"] == 1
+    assert manifest.split_counts["train_augmented"] == 1
+    assert manifest.split_counts["validation"] == 1
+    assert manifest.image_count == 1
+
+

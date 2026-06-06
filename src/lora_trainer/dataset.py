@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-REQUIRED_JSONL_FILES = ("train.jsonl", "train-augmented.jsonl", "validation.jsonl")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
 
@@ -117,10 +116,17 @@ def validate_extracted_dataset(root: Path, *, dataset_name: str) -> DatasetManif
     if not root.exists():
         raise DatasetValidationError(f"Dataset root does not exist: {root}")
 
+    # Determine which augmented filename exists
+    aug_filename = "train-augmented.jsonl"
+    if not (root / aug_filename).exists() and (root / "train_augmented.jsonl").exists():
+        aug_filename = "train_augmented.jsonl"
+
+    files_to_validate = ("train.jsonl", aug_filename, "validation.jsonl")
+
     split_counts: dict[str, int] = {}
     seen_images: set[str] = set()
     references: list[str] = []
-    for jsonl_name in REQUIRED_JSONL_FILES:
+    for jsonl_name in files_to_validate:
         path = root / jsonl_name
         if not path.exists():
             raise DatasetValidationError(f"Required file is missing: {jsonl_name}")
@@ -144,7 +150,12 @@ def validate_extracted_dataset(root: Path, *, dataset_name: str) -> DatasetManif
 
 def load_training_records(root: Path) -> list[dict]:
     records: list[dict] = []
-    for filename in ("train.jsonl", "train-augmented.jsonl"):
+    # Determine which augmented filename exists
+    aug_filename = "train-augmented.jsonl"
+    if not (root / aug_filename).exists() and (root / "train_augmented.jsonl").exists():
+        aug_filename = "train_augmented.jsonl"
+
+    for filename in ("train.jsonl", aug_filename):
         for line_number, record in _read_jsonl(root / filename):
             copied = dict(record)
             copied["_metadata"] = {"source_file": filename, "line_number": line_number}
