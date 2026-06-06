@@ -51,6 +51,7 @@ class TrainingConfig(BaseModel):
     seed: int = 3407
     qlora_4bit: bool = False
     unsloth_moe_backend: str | None = None
+    attn_implementation: str | None = None
     set_unsloth_env_flags: bool = False
     unsloth_env_flags: dict[str, str] = Field(
         default_factory=lambda: {

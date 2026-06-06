@@ -35,6 +35,7 @@ training:
   seed: 3407
   qlora_4bit: false
   unsloth_moe_backend:
+  attn_implementation:
   set_unsloth_env_flags: true
   unsloth_env_flags:
     UNSLOTH_RETURN_LOGITS: "1"

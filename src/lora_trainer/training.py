@@ -79,6 +79,7 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         max_seq_length=config.training.max_seq_length,
         load_in_4bit=config.training.qlora_4bit,
         use_gradient_checkpointing="unsloth" if config.training.gradient_checkpointing else False,
+        attn_implementation=config.training.attn_implementation,
     )
     model = FastVisionModel.get_peft_model(
         model,
