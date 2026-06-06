@@ -49,7 +49,9 @@ def train_adapter(config: AppConfig, dataset_root: Path, manifest: DatasetManife
 def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path) -> None:
     from unsloth import FastVisionModel
 
-    # Patch Qwen MoE configs to avoid AttributeError when using finegrained_fp8 quantization
+    import builtins
+
+    # Patch Qwen MoE configs and inject modeling classes into builtins to avoid NameErrors/AttributeErrors during dynamic Unsloth compilation
     try:
         from transformers.models.qwen3_5_moe.configuration_qwen3_5_moe import Qwen3_5MoeTextConfig
         Qwen3_5MoeTextConfig.intermediate_size = property(
@@ -59,11 +61,25 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         pass
 
     try:
+        from transformers.models.qwen3_5_moe.modeling_qwen3_5_moe import Qwen3_5MoeExperts, Qwen3_5MoeSparseMoeBlock
+        builtins.Qwen3_5MoeExperts = Qwen3_5MoeExperts
+        builtins.Qwen3_5MoeSparseMoeBlock = Qwen3_5MoeSparseMoeBlock
+    except (ImportError, AttributeError):
+        pass
+
+    try:
         from transformers.models.qwen2_5_moe.configuration_qwen2_5_moe import Qwen2_5MoeConfig
         Qwen2_5MoeConfig.intermediate_size = property(
             lambda self: getattr(self, "moe_intermediate_size", None)
         )
     except ImportError:
+        pass
+
+    try:
+        from transformers.models.qwen2_5_moe.modeling_qwen2_5_moe import Qwen2_5MoeExperts, Qwen2_5MoeSparseMoeBlock
+        builtins.Qwen2_5MoeExperts = Qwen2_5MoeExperts
+        builtins.Qwen2_5MoeSparseMoeBlock = Qwen2_5MoeSparseMoeBlock
+    except (ImportError, AttributeError):
         pass
 
     from datasets import Dataset
