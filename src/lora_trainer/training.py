@@ -47,9 +47,9 @@ def train_adapter(config: AppConfig, dataset_root: Path, manifest: DatasetManife
 
 
 def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path) -> None:
+    from unsloth import FastVisionModel
     from datasets import Dataset
     from trl import SFTConfig, SFTTrainer
-    from unsloth import FastVisionModel
     from unsloth.trainer import UnslothVisionDataCollator
 
     train_dataset = Dataset.from_list(load_training_records(dataset_root))
