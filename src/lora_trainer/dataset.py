@@ -87,7 +87,29 @@ def extract_dataset_zip(archive: Path, extracted_root: Path, *, dataset_name: st
     destination.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as zf:
         zf.extractall(destination)
+
+    _flatten_single_top_level_directory(destination)
     return destination
+
+
+def _flatten_single_top_level_directory(destination: Path) -> None:
+    children = list(destination.iterdir())
+    filtered_children = [
+        c for c in children
+        if c.name not in ("__MACOSX", ".DS_Store") and not c.name.startswith(".")
+    ]
+    if len(filtered_children) == 1 and filtered_children[0].is_dir():
+        sub_dir = filtered_children[0]
+        for item in sub_dir.iterdir():
+            target_path = destination / item.name
+            if target_path.exists():
+                if target_path.is_dir():
+                    shutil.rmtree(target_path)
+                else:
+                    target_path.unlink()
+            shutil.move(str(item), str(target_path))
+        shutil.rmtree(sub_dir)
+
 
 
 def validate_extracted_dataset(root: Path, *, dataset_name: str) -> DatasetManifest:

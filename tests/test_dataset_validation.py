@@ -67,3 +67,21 @@ def test_extract_dataset_zip_rejects_path_traversal(tmp_path: Path) -> None:
 
     with pytest.raises(DatasetValidationError, match="unsafe"):
         extract_dataset_zip(archive, tmp_path / "cache", dataset_name="bad")
+
+
+def test_extract_dataset_zip_flattens_single_top_level_directory(tmp_path: Path) -> None:
+    archive = tmp_path / "nested.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("my_dataset/train.jsonl", "{}")
+        zf.writestr("my_dataset/validation.jsonl", "{}")
+        zf.writestr("my_dataset/images/img.png", "fake_png")
+        zf.writestr("__MACOSX/nested/._train.jsonl", "junk")
+        zf.writestr("my_dataset/.DS_Store", "junk")
+
+    dest = extract_dataset_zip(archive, tmp_path / "extracted", dataset_name="nested")
+
+    assert (dest / "train.jsonl").exists()
+    assert (dest / "validation.jsonl").exists()
+    assert (dest / "images" / "img.png").exists()
+    assert not (dest / "my_dataset").exists()
+
