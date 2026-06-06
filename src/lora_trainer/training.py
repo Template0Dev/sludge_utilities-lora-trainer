@@ -48,6 +48,24 @@ def train_adapter(config: AppConfig, dataset_root: Path, manifest: DatasetManife
 
 def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path) -> None:
     from unsloth import FastVisionModel
+
+    # Patch Qwen MoE configs to avoid AttributeError when using finegrained_fp8 quantization
+    try:
+        from transformers.models.qwen3_5_moe.configuration_qwen3_5_moe import Qwen3_5MoeTextConfig
+        Qwen3_5MoeTextConfig.intermediate_size = property(
+            lambda self: getattr(self, "moe_intermediate_size", None)
+        )
+    except ImportError:
+        pass
+
+    try:
+        from transformers.models.qwen2_5_moe.configuration_qwen2_5_moe import Qwen2_5MoeConfig
+        Qwen2_5MoeConfig.intermediate_size = property(
+            lambda self: getattr(self, "moe_intermediate_size", None)
+        )
+    except ImportError:
+        pass
+
     from datasets import Dataset
     from trl import SFTConfig, SFTTrainer
     from unsloth.trainer import UnslothVisionDataCollator
