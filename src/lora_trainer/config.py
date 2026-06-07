@@ -41,24 +41,37 @@ class LoraConfig(BaseModel):
     )
 
 
-class TrainingConfig(BaseModel):
+class TrainingHyperParams(BaseModel):
     batch_size: int = 1
     gradient_accumulation_steps: int = 8
-    gradient_checkpointing: bool = True
-    max_seq_length: int = 2048
-    max_steps: int = 60
     learning_rate: float = 2e-4
+    max_steps: int = 60
+    max_seq_length: int = 2048
     seed: int = 3407
-    qlora_4bit: bool = False
-    experts_implementation: str = "eager"
     early_stopping: bool = False
     early_stopping_patience: int = 3
     early_stopping_threshold: float = 0.0
+
+    @field_validator("max_seq_length")
+    @classmethod
+    def validate_max_seq_length(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("max_seq_length must be positive")
+        if value > 3072:
+            raise ValueError("max_seq_length must be <= 3072 for the conservative memory profile")
+        return value
+
+
+class TrainingMiscOptions(BaseModel):
+    gradient_checkpointing: bool = True
+    qlora_4bit: bool = False
+    experts_implementation: str = "eager"
     eval_strategy: Literal["no", "steps", "epoch"] = "steps"
     eval_steps: int = 50
     save_steps: int = 50
     save_total_limit: int = 1
     save_percentage: float = 10.0
+    save_policy: Literal["final", "steps", "percent"] = "percent"
     unsloth_moe_backend: str | None = None
     attn_implementation: str | None = None
     set_unsloth_env_flags: bool = False
@@ -80,15 +93,6 @@ class TrainingConfig(BaseModel):
         }
     )
 
-    @field_validator("max_seq_length")
-    @classmethod
-    def validate_max_seq_length(cls, value: int) -> int:
-        if value < 1:
-            raise ValueError("max_seq_length must be positive")
-        if value > 3072:
-            raise ValueError("max_seq_length must be <= 3072 for the conservative memory profile")
-        return value
-
 
 class ExportConfig(BaseModel):
     mode: Literal["adapter_only"] = "adapter_only"
@@ -108,13 +112,16 @@ class AppConfig(BaseModel):
     dataset: DatasetConfig = Field(default_factory=DatasetConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
     lora: LoraConfig = Field(default_factory=LoraConfig)
-    training: TrainingConfig = Field(default_factory=TrainingConfig)
+    training_hyper_params: TrainingHyperParams = Field(default_factory=TrainingHyperParams)
+    training_misc_options: TrainingMiscOptions = Field(default_factory=TrainingMiscOptions)
     export: ExportConfig = Field(default_factory=ExportConfig)
 
     @model_validator(mode="after")
-    def ensure_adapter_only(self) -> "AppConfig":
+    def validate_config(self) -> "AppConfig":
         if self.export.mode != "adapter_only":
             raise ValueError("Only adapter_only export is supported")
+        if self.training_hyper_params.early_stopping and self.training_misc_options.save_policy == "final":
+            raise ValueError("early_stopping requires save_policy to be 'steps' or 'percent' (cannot be 'final' because load_best_model_at_end is required).")
         return self
 
 

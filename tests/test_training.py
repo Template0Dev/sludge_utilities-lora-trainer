@@ -53,7 +53,7 @@ def test_train_adapter_sets_unsloth_env_flags(mock_train, tmp_path: Path) -> Non
         model={"id": "Qwen/Qwen3.6-35B-A3B-FP8"},
         dataset={"input_dir": tmp_path / "input", "extracted_root": tmp_path / "cache"},
         output={"adapter_root": tmp_path / "output"},
-        training={
+        training_misc_options={
             "set_unsloth_env_flags": True,
             "unsloth_env_flags": {
                 "UNSLOTH_TEST_VAR_1": "abc",
@@ -87,7 +87,7 @@ def test_train_adapter_does_not_set_unsloth_env_flags_if_disabled(mock_train, tm
         model={"id": "Qwen/Qwen3.6-35B-A3B-FP8"},
         dataset={"input_dir": tmp_path / "input", "extracted_root": tmp_path / "cache"},
         output={"adapter_root": tmp_path / "output"},
-        training={
+        training_misc_options={
             "set_unsloth_env_flags": False,
             "unsloth_env_flags": {
                 "UNSLOTH_TEST_VAR_1": "abc",
@@ -152,10 +152,12 @@ def test_train_with_unsloth_early_stopping(tmp_path: Path) -> None:
 
             config = AppConfig(
                 model={"id": "dummy-model"},
-                training={
+                training_hyper_params={
                     "early_stopping": True,
                     "early_stopping_patience": 4,
                     "early_stopping_threshold": 0.05,
+                },
+                training_misc_options={
                     "save_percentage": 25.0,
                     "save_total_limit": 2,
                 }
@@ -182,3 +184,106 @@ def test_train_with_unsloth_early_stopping(tmp_path: Path) -> None:
                 early_stopping_patience=4,
                 early_stopping_threshold=0.05,
             )
+
+
+def test_train_with_unsloth_save_policy_final(tmp_path: Path) -> None:
+    import sys
+    from unittest.mock import MagicMock, patch
+
+    mock_unsloth = MagicMock()
+    mock_datasets = MagicMock()
+    mock_trl = MagicMock()
+
+    mock_unsloth.FastVisionModel = MagicMock()
+    mock_datasets.Dataset = MagicMock()
+    mock_trl.SFTConfig = MagicMock()
+    mock_trl.SFTTrainer = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {
+            "unsloth": mock_unsloth,
+            "datasets": mock_datasets,
+            "trl": mock_trl,
+            "unsloth.trainer": MagicMock(),
+        },
+    ):
+        from lora_trainer.training import _train_with_unsloth
+
+        with patch("lora_trainer.training.load_training_records", return_value=[{"input": "hi", "output": "hello"}]), \
+             patch("lora_trainer.training.load_validation_records", return_value=[]), \
+             patch("lora_trainer.training.sft_length_kwargs", return_value={"max_seq_length": 2048}):
+
+            mock_model = MagicMock()
+            mock_processor = MagicMock()
+            mock_unsloth.FastVisionModel.from_pretrained.return_value = (mock_model, mock_processor)
+            mock_unsloth.FastVisionModel.get_peft_model.return_value = mock_model
+
+            config = AppConfig(
+                model={"id": "dummy-model"},
+                training_hyper_params={
+                    "early_stopping": False,
+                },
+                training_misc_options={
+                    "save_policy": "final",
+                }
+            )
+
+            _train_with_unsloth(config, tmp_path / "dataset", tmp_path / "output")
+
+            mock_trl.SFTConfig.assert_called_once()
+            kwargs = mock_trl.SFTConfig.call_args[1]
+            assert kwargs["save_strategy"] == "no"
+            assert "save_steps" not in kwargs
+
+
+def test_train_with_unsloth_save_policy_steps(tmp_path: Path) -> None:
+    import sys
+    from unittest.mock import MagicMock, patch
+
+    mock_unsloth = MagicMock()
+    mock_datasets = MagicMock()
+    mock_trl = MagicMock()
+
+    mock_unsloth.FastVisionModel = MagicMock()
+    mock_datasets.Dataset = MagicMock()
+    mock_trl.SFTConfig = MagicMock()
+    mock_trl.SFTTrainer = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {
+            "unsloth": mock_unsloth,
+            "datasets": mock_datasets,
+            "trl": mock_trl,
+            "unsloth.trainer": MagicMock(),
+        },
+    ):
+        from lora_trainer.training import _train_with_unsloth
+
+        with patch("lora_trainer.training.load_training_records", return_value=[{"input": "hi", "output": "hello"}]), \
+             patch("lora_trainer.training.load_validation_records", return_value=[]), \
+             patch("lora_trainer.training.sft_length_kwargs", return_value={"max_seq_length": 2048}):
+
+            mock_model = MagicMock()
+            mock_processor = MagicMock()
+            mock_unsloth.FastVisionModel.from_pretrained.return_value = (mock_model, mock_processor)
+            mock_unsloth.FastVisionModel.get_peft_model.return_value = mock_model
+
+            config = AppConfig(
+                model={"id": "dummy-model"},
+                training_hyper_params={
+                    "early_stopping": False,
+                },
+                training_misc_options={
+                    "save_policy": "steps",
+                    "save_steps": 25,
+                }
+            )
+
+            _train_with_unsloth(config, tmp_path / "dataset", tmp_path / "output")
+
+            mock_trl.SFTConfig.assert_called_once()
+            kwargs = mock_trl.SFTConfig.call_args[1]
+            assert kwargs["save_strategy"] == "steps"
+            assert kwargs["save_steps"] == 25

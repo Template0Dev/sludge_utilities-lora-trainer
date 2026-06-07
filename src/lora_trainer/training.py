@@ -24,14 +24,14 @@ def train_adapter(config: AppConfig, dataset_root: Path, manifest: DatasetManife
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if config.training.set_unsloth_env_flags:
-        for key, val in config.training.unsloth_env_flags.items():
+    if config.training_misc_options.set_unsloth_env_flags:
+        for key, val in config.training_misc_options.unsloth_env_flags.items():
             os.environ[key] = str(val)
 
-    if config.training.unsloth_moe_backend:
-        os.environ["UNSLOTH_MOE_BACKEND"] = config.training.unsloth_moe_backend
+    if config.training_misc_options.unsloth_moe_backend:
+        os.environ["UNSLOTH_MOE_BACKEND"] = config.training_misc_options.unsloth_moe_backend
 
-    if config.training.qlora_4bit:
+    if config.training_misc_options.qlora_4bit:
         print("Warning: 4-bit QLoRA is explicit opt-in and may be limited for MoE/VL models.")
 
     try:
@@ -108,43 +108,61 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         finetune_mlp_modules=True,
     )
 
-    calculated_save_steps = max(1, int(config.training.max_steps * (config.training.save_percentage / 100.0)))
+    save_policy = config.training_misc_options.save_policy
+    if save_policy == "final":
+        save_strategy = "no"
+        save_steps = None
+    elif save_policy == "steps":
+        save_strategy = "steps"
+        save_steps = config.training_misc_options.save_steps
+    elif save_policy == "percent":
+        save_strategy = "steps"
+        save_steps = max(
+            1,
+            int(
+                config.training_hyper_params.max_steps
+                * (config.training_misc_options.save_percentage / 100.0)
+            ),
+        )
+    else:
+        raise ValueError(f"Unknown save_policy: {save_policy}")
 
     sft_kwargs = {
         "output_dir": str(output_dir / "checkpoints"),
-        "per_device_train_batch_size": config.training.batch_size,
-        "gradient_accumulation_steps": config.training.gradient_accumulation_steps,
-        "max_steps": config.training.max_steps,
-        "learning_rate": config.training.learning_rate,
+        "per_device_train_batch_size": config.training_hyper_params.batch_size,
+        "gradient_accumulation_steps": config.training_hyper_params.gradient_accumulation_steps,
+        "max_steps": config.training_hyper_params.max_steps,
+        "learning_rate": config.training_hyper_params.learning_rate,
         "logging_steps": 1,
         "bf16": True,
         "fp16": False,
-        "seed": config.training.seed,
+        "seed": config.training_hyper_params.seed,
         "remove_unused_columns": False,
         "dataset_text_field": "",
-        "save_strategy": "steps",
-        "save_steps": calculated_save_steps,
-        "save_total_limit": config.training.save_total_limit,
-        **sft_length_kwargs(SFTConfig, config.training.max_seq_length),
+        "save_strategy": save_strategy,
+        "save_total_limit": config.training_misc_options.save_total_limit,
+        **sft_length_kwargs(SFTConfig, config.training_hyper_params.max_seq_length),
     }
+    if save_steps is not None:
+        sft_kwargs["save_steps"] = save_steps
 
     callbacks = []
-    if config.training.early_stopping:
+    if config.training_hyper_params.early_stopping:
         if eval_dataset is None:
             print("Warning: early_stopping is enabled, but no validation dataset was loaded. Skipping early stopping configuration.")
         else:
             from transformers import EarlyStoppingCallback
             sft_kwargs.update({
                 "eval_strategy": "steps",
-                "eval_steps": calculated_save_steps,
+                "eval_steps": save_steps,
                 "load_best_model_at_end": True,
                 "metric_for_best_model": "eval_loss",
                 "greater_is_better": False,
             })
             callbacks.append(
                 EarlyStoppingCallback(
-                    early_stopping_patience=config.training.early_stopping_patience,
-                    early_stopping_threshold=config.training.early_stopping_threshold,
+                    early_stopping_patience=config.training_hyper_params.early_stopping_patience,
+                    early_stopping_threshold=config.training_hyper_params.early_stopping_threshold,
                 )
             )
 
@@ -155,8 +173,8 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         data_collator=UnslothVisionDataCollator(
             model,
             processor,
-            resize=config.training.resize,
-            resize_dimension=config.training.resize_dimension,
+            resize=config.training_misc_options.resize,
+            resize_dimension=config.training_misc_options.resize_dimension,
         ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
@@ -183,16 +201,16 @@ def sft_length_kwargs(sft_config_cls: type[Any], max_seq_length: int) -> dict[st
 
 def build_model_load_kwargs(config: AppConfig) -> dict[str, Any]:
     return {
-        "max_seq_length": config.training.max_seq_length,
-        "load_in_4bit": config.training.qlora_4bit,
-        "use_gradient_checkpointing": "unsloth" if config.training.gradient_checkpointing else False,
-        "attn_implementation": config.training.attn_implementation,
-        "experts_implementation": config.training.experts_implementation,
+        "max_seq_length": config.training_hyper_params.max_seq_length,
+        "load_in_4bit": config.training_misc_options.qlora_4bit,
+        "use_gradient_checkpointing": "unsloth" if config.training_misc_options.gradient_checkpointing else False,
+        "attn_implementation": config.training_misc_options.attn_implementation,
+        "experts_implementation": config.training_misc_options.experts_implementation,
     }
 
 
 def patch_model_runtime_config(model: Any, config: AppConfig) -> None:
-    impl = config.training.experts_implementation
+    impl = config.training_misc_options.experts_implementation
     if hasattr(model, "config"):
         model.config._experts_implementation = impl
         if hasattr(model.config, "language_config") and model.config.language_config is not None:

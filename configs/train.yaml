@@ -25,24 +25,28 @@ lora:
     - down_proj
     - gate_up_proj
 
-training:
+training_hyper_params:
   batch_size: 1
   gradient_accumulation_steps: 8
-  gradient_checkpointing: true
   max_seq_length: 2048
   max_steps: 486
   learning_rate: 0.0002
   seed: 3407
-  qlora_4bit: false
-  save_percentage: 10.0
   # Early stopping settings (requires validation split in dataset)
   # early_stopping: true
   # early_stopping_patience: 3
   # early_stopping_threshold: 0.0
-  # eval_strategy: "steps"
-  # eval_steps: 50
+
+training_misc_options:
+  gradient_checkpointing: true
+  qlora_4bit: false
+  # save_policy choices: "final" (save only result), "steps" (save by amount of steps), "percent" (save by amount of percent)
+  save_policy: "percent"
+  save_percentage: 10.0
   # save_steps: 50
   # save_total_limit: 1
+  # eval_strategy: "steps"
+  # eval_steps: 50
   resize: "max"
   resize_dimension: "max"
   unsloth_moe_backend:
