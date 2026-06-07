@@ -31,3 +31,5 @@ mlruns/
 .idea/
 
 tmp.zip
+
+*.lnk
