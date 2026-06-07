@@ -28,7 +28,7 @@ def test_load_config_defaults_dataset_paths(tmp_path: Path) -> None:
     assert config.lora.precision == "bf16"
     assert config.training_hyper_params.max_seq_length == 2048
     assert config.training_misc_options.experts_implementation == "eager"
-    assert config.training_misc_options.save_percentage == 10.0
+    assert config.training_misc_options.save_settings.save_percentage == 10.0
 
 
 def test_load_config_rejects_merged_export_mode(tmp_path: Path) -> None:
@@ -70,10 +70,14 @@ def test_load_config_unsloth_env_flags(tmp_path: Path) -> None:
             {
                 "model": {"id": "Qwen/Qwen3.6-35B-A3B-FP8"},
                 "training_misc_options": {
-                    "set_unsloth_env_flags": True,
-                    "unsloth_env_flags": {
-                        "UNSLOTH_COMPILE_DISABLE": "0",
-                        "UNSLOTH_DISABLE_FAST_GENERATION": "0",
+                    "env_flags": {
+                        "unsloth": {
+                            "set_unsloth_env_flags": True,
+                            "flags": {
+                                "UNSLOTH_COMPILE_DISABLE": "0",
+                                "UNSLOTH_DISABLE_FAST_GENERATION": "0",
+                            }
+                        }
                     }
                 }
             }
@@ -82,9 +86,9 @@ def test_load_config_unsloth_env_flags(tmp_path: Path) -> None:
     )
 
     config = load_config(config_path)
-    assert config.training_misc_options.set_unsloth_env_flags is True
-    assert config.training_misc_options.unsloth_env_flags["UNSLOTH_COMPILE_DISABLE"] == "0"
-    assert config.training_misc_options.unsloth_env_flags["UNSLOTH_DISABLE_FAST_GENERATION"] == "0"
+    assert config.training_misc_options.env_flags.unsloth.set_unsloth_env_flags is True
+    assert config.training_misc_options.env_flags.unsloth.flags["UNSLOTH_COMPILE_DISABLE"] == "0"
+    assert config.training_misc_options.env_flags.unsloth.flags["UNSLOTH_DISABLE_FAST_GENERATION"] == "0"
 
 
 def test_load_config_unsloth_env_flags_defaults(tmp_path: Path) -> None:
@@ -99,8 +103,8 @@ def test_load_config_unsloth_env_flags_defaults(tmp_path: Path) -> None:
     )
 
     config = load_config(config_path)
-    assert config.training_misc_options.set_unsloth_env_flags is False
-    assert config.training_misc_options.unsloth_env_flags["UNSLOTH_COMPILE_DISABLE"] == "1"
+    assert config.training_misc_options.env_flags.unsloth.set_unsloth_env_flags is False
+    assert config.training_misc_options.env_flags.unsloth.flags["UNSLOTH_COMPILE_DISABLE"] == "1"
 
 
 def test_load_config_early_stopping_settings(tmp_path: Path) -> None:
@@ -115,11 +119,15 @@ def test_load_config_early_stopping_settings(tmp_path: Path) -> None:
                     "early_stopping_threshold": 0.01,
                 },
                 "training_misc_options": {
-                    "eval_strategy": "epoch",
-                    "eval_steps": 100,
-                    "save_steps": 100,
-                    "save_total_limit": 2,
-                    "save_percentage": 15.0,
+                    "evaluation_settings": {
+                        "eval_strategy": "epoch",
+                        "eval_steps": 100,
+                    },
+                    "save_settings": {
+                        "save_steps": 100,
+                        "save_total_limit": 2,
+                        "save_percentage": 15.0,
+                    }
                 }
             }
         ),
@@ -130,11 +138,11 @@ def test_load_config_early_stopping_settings(tmp_path: Path) -> None:
     assert config.training_hyper_params.early_stopping is True
     assert config.training_hyper_params.early_stopping_patience == 5
     assert config.training_hyper_params.early_stopping_threshold == 0.01
-    assert config.training_misc_options.eval_strategy == "epoch"
-    assert config.training_misc_options.eval_steps == 100
-    assert config.training_misc_options.save_steps == 100
-    assert config.training_misc_options.save_total_limit == 2
-    assert config.training_misc_options.save_percentage == 15.0
+    assert config.training_misc_options.evaluation_settings.eval_strategy == "epoch"
+    assert config.training_misc_options.evaluation_settings.eval_steps == 100
+    assert config.training_misc_options.save_settings.save_steps == 100
+    assert config.training_misc_options.save_settings.save_total_limit == 2
+    assert config.training_misc_options.save_settings.save_percentage == 15.0
 
 
 def test_load_config_rejects_early_stopping_with_final_save_policy(tmp_path: Path) -> None:
@@ -147,7 +155,9 @@ def test_load_config_rejects_early_stopping_with_final_save_policy(tmp_path: Pat
                     "early_stopping": True,
                 },
                 "training_misc_options": {
-                    "save_policy": "final",
+                    "save_settings": {
+                        "save_policy": "final",
+                    }
                 }
             }
         ),

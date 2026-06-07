@@ -54,10 +54,14 @@ def test_train_adapter_sets_unsloth_env_flags(mock_train, tmp_path: Path) -> Non
         dataset={"input_dir": tmp_path / "input", "extracted_root": tmp_path / "cache"},
         output={"adapter_root": tmp_path / "output"},
         training_misc_options={
-            "set_unsloth_env_flags": True,
-            "unsloth_env_flags": {
-                "UNSLOTH_TEST_VAR_1": "abc",
-                "UNSLOTH_TEST_VAR_2": "xyz",
+            "env_flags": {
+                "unsloth": {
+                    "set_unsloth_env_flags": True,
+                    "flags": {
+                        "UNSLOTH_TEST_VAR_1": "abc",
+                        "UNSLOTH_TEST_VAR_2": "xyz",
+                    }
+                }
             }
         }
     )
@@ -88,10 +92,14 @@ def test_train_adapter_does_not_set_unsloth_env_flags_if_disabled(mock_train, tm
         dataset={"input_dir": tmp_path / "input", "extracted_root": tmp_path / "cache"},
         output={"adapter_root": tmp_path / "output"},
         training_misc_options={
-            "set_unsloth_env_flags": False,
-            "unsloth_env_flags": {
-                "UNSLOTH_TEST_VAR_1": "abc",
-                "UNSLOTH_TEST_VAR_2": "xyz",
+            "env_flags": {
+                "unsloth": {
+                    "set_unsloth_env_flags": False,
+                    "flags": {
+                        "UNSLOTH_TEST_VAR_1": "abc",
+                        "UNSLOTH_TEST_VAR_2": "xyz",
+                    }
+                }
             }
         }
     )
@@ -158,8 +166,10 @@ def test_train_with_unsloth_early_stopping(tmp_path: Path) -> None:
                     "early_stopping_threshold": 0.05,
                 },
                 training_misc_options={
-                    "save_percentage": 25.0,
-                    "save_total_limit": 2,
+                    "save_settings": {
+                        "save_percentage": 25.0,
+                        "save_total_limit": 2,
+                    }
                 }
             )
 
@@ -225,7 +235,9 @@ def test_train_with_unsloth_save_policy_final(tmp_path: Path) -> None:
                     "early_stopping": False,
                 },
                 training_misc_options={
-                    "save_policy": "final",
+                    "save_settings": {
+                        "save_policy": "final",
+                    }
                 }
             )
 
@@ -276,8 +288,10 @@ def test_train_with_unsloth_save_policy_steps(tmp_path: Path) -> None:
                     "early_stopping": False,
                 },
                 training_misc_options={
-                    "save_policy": "steps",
-                    "save_steps": 25,
+                    "save_settings": {
+                        "save_policy": "steps",
+                        "save_steps": 25,
+                    }
                 }
             )
 

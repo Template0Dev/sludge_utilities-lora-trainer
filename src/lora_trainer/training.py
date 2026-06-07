@@ -24,12 +24,12 @@ def train_adapter(config: AppConfig, dataset_root: Path, manifest: DatasetManife
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if config.training_misc_options.set_unsloth_env_flags:
-        for key, val in config.training_misc_options.unsloth_env_flags.items():
+    if config.training_misc_options.env_flags.unsloth.set_unsloth_env_flags:
+        for key, val in config.training_misc_options.env_flags.unsloth.flags.items():
             os.environ[key] = str(val)
 
-    if config.training_misc_options.unsloth_moe_backend:
-        os.environ["UNSLOTH_MOE_BACKEND"] = config.training_misc_options.unsloth_moe_backend
+    if config.training_misc_options.backend_params.unsloth_moe_backend:
+        os.environ["UNSLOTH_MOE_BACKEND"] = config.training_misc_options.backend_params.unsloth_moe_backend
 
     if config.training_misc_options.qlora_4bit:
         print("Warning: 4-bit QLoRA is explicit opt-in and may be limited for MoE/VL models.")
@@ -108,20 +108,20 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         finetune_mlp_modules=True,
     )
 
-    save_policy = config.training_misc_options.save_policy
+    save_policy = config.training_misc_options.save_settings.save_policy
     if save_policy == "final":
         save_strategy = "no"
         save_steps = None
     elif save_policy == "steps":
         save_strategy = "steps"
-        save_steps = config.training_misc_options.save_steps
+        save_steps = config.training_misc_options.save_settings.save_steps
     elif save_policy == "percent":
         save_strategy = "steps"
         save_steps = max(
             1,
             int(
                 config.training_hyper_params.max_steps
-                * (config.training_misc_options.save_percentage / 100.0)
+                * (config.training_misc_options.save_settings.save_percentage / 100.0)
             ),
         )
     else:
@@ -140,7 +140,7 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         "remove_unused_columns": False,
         "dataset_text_field": "",
         "save_strategy": save_strategy,
-        "save_total_limit": config.training_misc_options.save_total_limit,
+        "save_total_limit": config.training_misc_options.save_settings.save_total_limit,
         **sft_length_kwargs(SFTConfig, config.training_hyper_params.max_seq_length),
     }
     if save_steps is not None:
@@ -173,8 +173,8 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         data_collator=UnslothVisionDataCollator(
             model,
             processor,
-            resize=config.training_misc_options.resize,
-            resize_dimension=config.training_misc_options.resize_dimension,
+            resize=config.training_misc_options.images_params.resize_policy.resize,
+            resize_dimension=config.training_misc_options.images_params.resize_policy.resize_dimension,
         ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
@@ -204,7 +204,7 @@ def build_model_load_kwargs(config: AppConfig) -> dict[str, Any]:
         "max_seq_length": config.training_hyper_params.max_seq_length,
         "load_in_4bit": config.training_misc_options.qlora_4bit,
         "use_gradient_checkpointing": "unsloth" if config.training_misc_options.gradient_checkpointing else False,
-        "attn_implementation": config.training_misc_options.attn_implementation,
+        "attn_implementation": config.training_misc_options.backend_params.attn_implementation,
         "experts_implementation": config.training_misc_options.experts_implementation,
     }
 

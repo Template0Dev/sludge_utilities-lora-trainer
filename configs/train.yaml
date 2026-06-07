@@ -40,30 +40,37 @@ training_hyper_params:
 training_misc_options:
   gradient_checkpointing: true
   qlora_4bit: false
-  # save_policy choices: "final" (save only result), "steps" (save by amount of steps), "percent" (save by amount of percent)
-  save_policy: "percent"
-  save_percentage: 10.0
-  # save_steps: 50
-  # save_total_limit: 1
-  # eval_strategy: "steps"
-  # eval_steps: 50
-  resize: "max"
-  resize_dimension: "max"
-  unsloth_moe_backend:
-  attn_implementation:
-  set_unsloth_env_flags: true
-  unsloth_env_flags:
-    UNSLOTH_RETURN_LOGITS: "1"
-    UNSLOTH_COMPILE_DISABLE: "1"
-    UNSLOTH_DISABLE_FAST_GENERATION: "1"
-    UNSLOTH_ENABLE_LOGGING: "1"
-    UNSLOTH_FORCE_FLOAT32: "1"
-    UNSLOTH_STUDIO_DISABLED: "1"
-    UNSLOTH_COMPILE_DEBUG: "1"
-    UNSLOTH_COMPILE_MAXIMUM: "0"
-    UNSLOTH_COMPILE_IGNORE_ERRORS: "1"
-    UNSLOTH_FULLGRAPH: "0"
-    UNSLOTH_DISABLE_AUTO_UPDATES: "1"
+  save_settings:
+    # save_policy choices: "final" (save only result), "steps" (save by amount of steps), "percent" (save by amount of percent)
+    save_policy: "percent"
+    save_percentage: 10.0
+    # save_steps: 50
+    save_total_limit: 2
+  evaluation_settings:
+    # eval_strategy: "steps"
+    # eval_steps: 50
+  images_params:
+    resize_policy:
+      resize: "max"
+      resize_dimension: "max"
+  backend_params:
+    unsloth_moe_backend:
+    attn_implementation:
+  env_flags:
+    unsloth:
+      set_unsloth_env_flags: true
+      flags:
+        UNSLOTH_RETURN_LOGITS: "1"
+        UNSLOTH_COMPILE_DISABLE: "1"
+        UNSLOTH_DISABLE_FAST_GENERATION: "1"
+        UNSLOTH_ENABLE_LOGGING: "1"
+        UNSLOTH_FORCE_FLOAT32: "1"
+        UNSLOTH_STUDIO_DISABLED: "1"
+        UNSLOTH_COMPILE_DEBUG: "1"
+        UNSLOTH_COMPILE_MAXIMUM: "0"
+        UNSLOTH_COMPILE_IGNORE_ERRORS: "1"
+        UNSLOTH_FULLGRAPH: "0"
+        UNSLOTH_DISABLE_AUTO_UPDATES: "1"
 
 
 export:

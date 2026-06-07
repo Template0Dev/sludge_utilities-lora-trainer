@@ -62,22 +62,21 @@ class TrainingHyperParams(BaseModel):
         return value
 
 
-class TrainingMiscOptions(BaseModel):
-    gradient_checkpointing: bool = True
-    qlora_4bit: bool = False
-    experts_implementation: str = "eager"
-    eval_strategy: Literal["no", "steps", "epoch"] = "steps"
-    eval_steps: int = 50
+class SaveSettings(BaseModel):
+    save_policy: Literal["final", "steps", "percent"] = "percent"
+    save_percentage: float = 10.0
     save_steps: int = 50
     save_total_limit: int = 1
-    save_percentage: float = 10.0
-    save_policy: Literal["final", "steps", "percent"] = "percent"
-    unsloth_moe_backend: str | None = None
-    attn_implementation: str | None = None
+
+
+class EvaluationSettings(BaseModel):
+    eval_strategy: Literal["no", "steps", "epoch"] = "steps"
+    eval_steps: int = 50
+
+
+class UnslothEnvFlags(BaseModel):
     set_unsloth_env_flags: bool = False
-    resize: int | str | None = "min"
-    resize_dimension: str | None = "max"
-    unsloth_env_flags: dict[str, str] = Field(
+    flags: dict[str, str] = Field(
         default_factory=lambda: {
             "UNSLOTH_RETURN_LOGITS": "1",
             "UNSLOTH_COMPILE_DISABLE": "1",
@@ -92,6 +91,35 @@ class TrainingMiscOptions(BaseModel):
             "UNSLOTH_DISABLE_AUTO_UPDATES": "1",
         }
     )
+
+
+class EnvFlagsConfig(BaseModel):
+    unsloth: UnslothEnvFlags = Field(default_factory=UnslothEnvFlags)
+
+
+class BackendParams(BaseModel):
+    unsloth_moe_backend: str | None = None
+    attn_implementation: str | None = None
+
+
+class ResizePolicy(BaseModel):
+    resize: int | str | None = "min"
+    resize_dimension: str | None = "max"
+
+
+class ImagesParams(BaseModel):
+    resize_policy: ResizePolicy = Field(default_factory=ResizePolicy)
+
+
+class TrainingMiscOptions(BaseModel):
+    gradient_checkpointing: bool = True
+    qlora_4bit: bool = False
+    experts_implementation: str = "eager"
+    save_settings: SaveSettings = Field(default_factory=SaveSettings)
+    evaluation_settings: EvaluationSettings = Field(default_factory=EvaluationSettings)
+    env_flags: EnvFlagsConfig = Field(default_factory=EnvFlagsConfig)
+    backend_params: BackendParams = Field(default_factory=BackendParams)
+    images_params: ImagesParams = Field(default_factory=ImagesParams)
 
 
 class ExportConfig(BaseModel):
@@ -120,7 +148,7 @@ class AppConfig(BaseModel):
     def validate_config(self) -> "AppConfig":
         if self.export.mode != "adapter_only":
             raise ValueError("Only adapter_only export is supported")
-        if self.training_hyper_params.early_stopping and self.training_misc_options.save_policy == "final":
+        if self.training_hyper_params.early_stopping and self.training_misc_options.save_settings.save_policy == "final":
             raise ValueError("early_stopping requires save_policy to be 'steps' or 'percent' (cannot be 'final' because load_best_model_at_end is required).")
         return self
 
