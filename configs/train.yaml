@@ -34,6 +34,15 @@ training:
   learning_rate: 0.0002
   seed: 3407
   qlora_4bit: false
+  save_percentage: 10.0
+  # Early stopping settings (requires validation split in dataset)
+  # early_stopping: true
+  # early_stopping_patience: 3
+  # early_stopping_threshold: 0.0
+  # eval_strategy: "steps"
+  # eval_steps: 50
+  # save_steps: 50
+  # save_total_limit: 1
   resize: "max"
   resize_dimension: "max"
   unsloth_moe_backend:

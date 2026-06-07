@@ -28,6 +28,7 @@ def test_load_config_defaults_dataset_paths(tmp_path: Path) -> None:
     assert config.lora.precision == "bf16"
     assert config.training.max_seq_length == 2048
     assert config.training.experts_implementation == "eager"
+    assert config.training.save_percentage == 10.0
 
 
 def test_load_config_rejects_merged_export_mode(tmp_path: Path) -> None:
@@ -100,3 +101,35 @@ def test_load_config_unsloth_env_flags_defaults(tmp_path: Path) -> None:
     config = load_config(config_path)
     assert config.training.set_unsloth_env_flags is False
     assert config.training.unsloth_env_flags["UNSLOTH_COMPILE_DISABLE"] == "1"
+
+
+def test_load_config_early_stopping_settings(tmp_path: Path) -> None:
+    config_path = tmp_path / "train.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "model": {"id": "Qwen/Qwen3.6-35B-A3B-FP8"},
+                "training": {
+                    "early_stopping": True,
+                    "early_stopping_patience": 5,
+                    "early_stopping_threshold": 0.01,
+                    "eval_strategy": "epoch",
+                    "eval_steps": 100,
+                    "save_steps": 100,
+                    "save_total_limit": 2,
+                    "save_percentage": 15.0,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+    assert config.training.early_stopping is True
+    assert config.training.early_stopping_patience == 5
+    assert config.training.early_stopping_threshold == 0.01
+    assert config.training.eval_strategy == "epoch"
+    assert config.training.eval_steps == 100
+    assert config.training.save_steps == 100
+    assert config.training.save_total_limit == 2
+    assert config.training.save_percentage == 15.0

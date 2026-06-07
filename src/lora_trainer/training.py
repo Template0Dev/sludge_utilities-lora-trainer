@@ -90,13 +90,12 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
     eval_records = load_validation_records(dataset_root)
     eval_dataset = Dataset.from_list(eval_records) if eval_records else None
 
+    model_kwargs = build_model_load_kwargs(config)
     model, processor = FastVisionModel.from_pretrained(
         config.model.id,
-        max_seq_length=config.training.max_seq_length,
-        load_in_4bit=config.training.qlora_4bit,
-        use_gradient_checkpointing="unsloth" if config.training.gradient_checkpointing else False,
-        attn_implementation=config.training.attn_implementation,
+        **model_kwargs,
     )
+    patch_model_runtime_config(model, config)
     model = FastVisionModel.get_peft_model(
         model,
         r=config.lora.r,
@@ -109,20 +108,47 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         finetune_mlp_modules=True,
     )
 
-    args = SFTConfig(
-        output_dir=str(output_dir / "checkpoints"),
-        per_device_train_batch_size=config.training.batch_size,
-        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
-        max_steps=config.training.max_steps,
-        learning_rate=config.training.learning_rate,
-        logging_steps=1,
-        bf16=True,
-        fp16=False,
-        seed=config.training.seed,
-        remove_unused_columns=False,
-        dataset_text_field="",
+    calculated_save_steps = max(1, int(config.training.max_steps * (config.training.save_percentage / 100.0)))
+
+    sft_kwargs = {
+        "output_dir": str(output_dir / "checkpoints"),
+        "per_device_train_batch_size": config.training.batch_size,
+        "gradient_accumulation_steps": config.training.gradient_accumulation_steps,
+        "max_steps": config.training.max_steps,
+        "learning_rate": config.training.learning_rate,
+        "logging_steps": 1,
+        "bf16": True,
+        "fp16": False,
+        "seed": config.training.seed,
+        "remove_unused_columns": False,
+        "dataset_text_field": "",
+        "save_strategy": "steps",
+        "save_steps": calculated_save_steps,
+        "save_total_limit": config.training.save_total_limit,
         **sft_length_kwargs(SFTConfig, config.training.max_seq_length),
-    )
+    }
+
+    callbacks = []
+    if config.training.early_stopping:
+        if eval_dataset is None:
+            print("Warning: early_stopping is enabled, but no validation dataset was loaded. Skipping early stopping configuration.")
+        else:
+            from transformers import EarlyStoppingCallback
+            sft_kwargs.update({
+                "eval_strategy": "steps",
+                "eval_steps": calculated_save_steps,
+                "load_best_model_at_end": True,
+                "metric_for_best_model": "eval_loss",
+                "greater_is_better": False,
+            })
+            callbacks.append(
+                EarlyStoppingCallback(
+                    early_stopping_patience=config.training.early_stopping_patience,
+                    early_stopping_threshold=config.training.early_stopping_threshold,
+                )
+            )
+
+    args = SFTConfig(**sft_kwargs)
     trainer = SFTTrainer(
         model=model,
         tokenizer=processor,
@@ -135,6 +161,7 @@ def _train_with_unsloth(config: AppConfig, dataset_root: Path, output_dir: Path)
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         args=args,
+        callbacks=callbacks,
     )
     trainer.train()
     model.save_pretrained(output_dir)
@@ -152,3 +179,21 @@ def sft_length_kwargs(sft_config_cls: type[Any], max_seq_length: int) -> dict[st
     if "max_seq_length" in params:
         return {"max_seq_length": max_seq_length}
     raise RuntimeError("TRL SFTConfig does not expose max_length or max_seq_length")
+
+
+def build_model_load_kwargs(config: AppConfig) -> dict[str, Any]:
+    return {
+        "max_seq_length": config.training.max_seq_length,
+        "load_in_4bit": config.training.qlora_4bit,
+        "use_gradient_checkpointing": "unsloth" if config.training.gradient_checkpointing else False,
+        "attn_implementation": config.training.attn_implementation,
+        "experts_implementation": config.training.experts_implementation,
+    }
+
+
+def patch_model_runtime_config(model: Any, config: AppConfig) -> None:
+    impl = config.training.experts_implementation
+    if hasattr(model, "config"):
+        model.config._experts_implementation = impl
+        if hasattr(model.config, "language_config") and model.config.language_config is not None:
+            model.config.language_config._experts_implementation = impl

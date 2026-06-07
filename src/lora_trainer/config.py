@@ -50,6 +50,15 @@ class TrainingConfig(BaseModel):
     learning_rate: float = 2e-4
     seed: int = 3407
     qlora_4bit: bool = False
+    experts_implementation: str = "eager"
+    early_stopping: bool = False
+    early_stopping_patience: int = 3
+    early_stopping_threshold: float = 0.0
+    eval_strategy: Literal["no", "steps", "epoch"] = "steps"
+    eval_steps: int = 50
+    save_steps: int = 50
+    save_total_limit: int = 1
+    save_percentage: float = 10.0
     unsloth_moe_backend: str | None = None
     attn_implementation: str | None = None
     set_unsloth_env_flags: bool = False

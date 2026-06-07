@@ -112,3 +112,73 @@ def test_train_adapter_does_not_set_unsloth_env_flags_if_disabled(mock_train, tm
     assert "UNSLOTH_TEST_VAR_1" not in os.environ
     assert "UNSLOTH_TEST_VAR_2" not in os.environ
     assert mock_train.called
+
+
+def test_train_with_unsloth_early_stopping(tmp_path: Path) -> None:
+    import sys
+    from unittest.mock import MagicMock, patch
+
+    mock_unsloth = MagicMock()
+    mock_datasets = MagicMock()
+    mock_trl = MagicMock()
+    mock_transformers = MagicMock()
+
+    mock_unsloth.FastVisionModel = MagicMock()
+    mock_datasets.Dataset = MagicMock()
+    mock_trl.SFTConfig = MagicMock()
+    mock_trl.SFTTrainer = MagicMock()
+    mock_transformers.EarlyStoppingCallback = MagicMock()
+
+    with patch.dict(
+        sys.modules,
+        {
+            "unsloth": mock_unsloth,
+            "datasets": mock_datasets,
+            "trl": mock_trl,
+            "transformers": mock_transformers,
+            "unsloth.trainer": MagicMock(),
+        },
+    ):
+        from lora_trainer.training import _train_with_unsloth
+
+        with patch("lora_trainer.training.load_training_records", return_value=[{"input": "hi", "output": "hello"}]), \
+             patch("lora_trainer.training.load_validation_records", return_value=[{"input": "test", "output": "val"}]), \
+             patch("lora_trainer.training.sft_length_kwargs", return_value={"max_seq_length": 2048}):
+
+            mock_model = MagicMock()
+            mock_processor = MagicMock()
+            mock_unsloth.FastVisionModel.from_pretrained.return_value = (mock_model, mock_processor)
+            mock_unsloth.FastVisionModel.get_peft_model.return_value = mock_model
+
+            config = AppConfig(
+                model={"id": "dummy-model"},
+                training={
+                    "early_stopping": True,
+                    "early_stopping_patience": 4,
+                    "early_stopping_threshold": 0.05,
+                    "save_percentage": 25.0,
+                    "save_total_limit": 2,
+                }
+            )
+
+            _train_with_unsloth(config, tmp_path / "dataset", tmp_path / "output")
+
+            mock_trl.SFTConfig.assert_called_once()
+            kwargs = mock_trl.SFTConfig.call_args[1]
+            assert kwargs["eval_strategy"] == "steps"
+            assert kwargs["eval_steps"] == 15
+            assert kwargs["save_strategy"] == "steps"
+            assert kwargs["save_steps"] == 15
+            assert kwargs["load_best_model_at_end"] is True
+            assert kwargs["save_total_limit"] == 2
+            assert kwargs["metric_for_best_model"] == "eval_loss"
+            assert kwargs["greater_is_better"] is False
+
+            mock_trl.SFTTrainer.assert_called_once()
+            trainer_kwargs = mock_trl.SFTTrainer.call_args[1]
+            callbacks = trainer_kwargs.get("callbacks", [])
+            assert len(callbacks) == 1
+            mock_transformers.EarlyStoppingCallback.assert_called_once_with(
+                early_stopping_patience=4,
+                early_stopping_threshold=0.05,
+            )
